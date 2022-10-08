@@ -11,6 +11,7 @@ data_files.append(('share/' + package_name + '/launch', ['launch/localization_la
 data_files.append(('share/' + package_name + '/launch', ['launch/navigation_launch.py']))
 data_files.append(('share/' + package_name + '/launch', ['launch/slam_launch.py']))
 
+
 data_files.append(('share/' + package_name + '/resource', [
      'resource/nav2_default_view.rviz',
      'resource/nav2_multirobot_params_1.yaml',
