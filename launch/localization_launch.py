@@ -94,4 +94,3 @@ def generate_launch_description():
                         {'autostart': autostart},
                         {'node_names': lifecycle_nodes}])
     ])
-

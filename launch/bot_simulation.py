@@ -3,11 +3,11 @@ import os
 from ament_index_python.packages import get_package_share_directory
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, GroupAction, SetEnvironmentVariable
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PythonExpression
-from launch_ros.actions import Node, PushRosNamespace
+from launch_ros.actions import Node
 
 
 def generate_launch_description():
@@ -23,8 +23,6 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration('use_sim_time')
     params_file = LaunchConfiguration('params_file')
     autostart = LaunchConfiguration('autostart')
-    stdout_linebuf_envvar = SetEnvironmentVariable(
-        'RCUTILS_LOGGING_BUFFERED_STREAM', '1')
 
     # Launch configuration variables specific to simulation
     rviz_config_file = LaunchConfiguration('rviz_config_file')
@@ -56,7 +54,7 @@ def generate_launch_description():
 
     declare_slam_cmd = DeclareLaunchArgument(
         'slam',
-        default_value='True',
+        default_value='False',
         description='Whether run a SLAM')
 
     declare_map_yaml_cmd = DeclareLaunchArgument(
@@ -87,13 +85,15 @@ def generate_launch_description():
 
     declare_use_simulator_cmd = DeclareLaunchArgument(
         'use_simulator',
-        default_value='False',
+        default_value='True',
         description='Whether to start the simulator')
 
     declare_use_robot_state_pub_cmd = DeclareLaunchArgument(
         'use_robot_state_pub',
         default_value='True',
         description='Whether to start the robot state publisher')
+
+   
 
     declare_use_rviz_cmd = DeclareLaunchArgument(
         'use_rviz',
@@ -139,50 +139,26 @@ def generate_launch_description():
         remappings=remappings,
         arguments=[urdf])
 
+   
 
     rviz_cmd = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(launch_dir, 'rviz_launch.py')),
         condition=IfCondition(use_rviz),
         launch_arguments={'namespace': '',
-                          'use_namespace': 'false',
+                          'use_namespace': 'False',
                           'rviz_config': rviz_config_file}.items())
 
-    bringup_cmd_group = GroupAction([
-        PushRosNamespace(
-            condition=IfCondition(use_namespace),
-            namespace=namespace),
-
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(os.path.join(launch_dir, 'slam_launch.py')),
-            condition=IfCondition(slam),
-            launch_arguments={'namespace': namespace,
-                              'use_sim_time': use_sim_time,
-                              'autostart': autostart,
-                              'params_file': params_file}.items()),
-
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(os.path.join(launch_dir,
-                                                       'localization_launch.py')),
-            condition=IfCondition(PythonExpression(['not ', slam])),
-            launch_arguments={'namespace': namespace,
-                              'map': map_yaml_file,
-                              'use_sim_time': use_sim_time,
-                              'autostart': autostart,
-                              'params_file': params_file,
-                              'use_lifecycle_mgr': 'false'}.items()),
-
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(os.path.join(launch_dir, 'navigation_launch.py')),
-            launch_arguments={'namespace': namespace,
-                              'use_sim_time': use_sim_time,
-                              'map' : map_yaml_file,
-                              'autostart': autostart,
-                              'params_file': params_file,
-                              'use_lifecycle_mgr': 'false',
-                              'map_subscribe_transient_local': 'true'}.items()),
-    ])
-
+    bringup_cmd = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(launch_dir, 'bringup_launch.py')),
+        launch_arguments={'namespace': namespace,
+                          'use_namespace': use_namespace,
+                          'slam': slam,
+                          'map': map_yaml_file,
+                          'use_sim_time': use_sim_time,
+                          'params_file': params_file,
+                          'autostart': autostart}.items())
 
     # Create the launch description and populate
     ld = LaunchDescription()
@@ -195,15 +171,13 @@ def generate_launch_description():
     ld.add_action(declare_use_sim_time_cmd)
     ld.add_action(declare_params_file_cmd)
     ld.add_action(declare_autostart_cmd)
-    ld.add_action(stdout_linebuf_envvar)
-
     ld.add_action(declare_rviz_config_file_cmd)
     ld.add_action(declare_use_simulator_cmd)
     ld.add_action(declare_use_robot_state_pub_cmd)
     ld.add_action(declare_use_rviz_cmd)
     ld.add_action(declare_simulator_cmd)
     ld.add_action(declare_world_cmd)
-    
+
     # Add any conditioned actions
     ld.add_action(start_gazebo_server_cmd)
     ld.add_action(start_gazebo_client_cmd)
@@ -211,6 +185,6 @@ def generate_launch_description():
     # Add the actions to launch all of the navigation nodes
     ld.add_action(start_robot_state_publisher_cmd)
     ld.add_action(rviz_cmd)
-    ld.add_action(bringup_cmd_group)
-    
+    ld.add_action(bringup_cmd)
+
     return ld
